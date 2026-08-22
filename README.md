@@ -15,70 +15,68 @@
 | JSON、YAML、CSV、SQL 等机器可读产物 | 优先保持格式有效，不额外插入说明 |
 | 用户指定的目标语言 | 以用户要求为准 |
 
-## 用于 OpenCode
+## 作为 OpenCode 全局 Skill 使用
 
-本仓库采用 OpenCode 可识别的 Agent Skills 结构：skill 目录下必须直接包含 `SKILL.md`，其中的 `compatibility: opencode` 标明了目标运行环境。
+本仓库的目标是作为 **OpenCode 全局 Skill** 安装：安装一次后，OpenCode 在任意项目中都会发现 `zh-cn-default`。采用 OpenCode 原生的全局位置，而不是项目内的 `.opencode/skills/` 或兼容用的 `.agents/skills/`。
 
-推荐使用 OpenCode 原生的项目级位置：
-
-```text
-<project>/.opencode/skills/zh-cn-default/SKILL.md
-```
-
-在目标项目根目录执行：
-
-```powershell
-New-Item -ItemType Directory -Force .opencode\skills | Out-Null
-git clone https://github.com/TobeBestKK/zh-cn-default-skill.git .opencode\skills\zh-cn-default
-```
-
-如果同一个 skill 也要被支持 `.agents` 目录的其他代理使用，可改装到兼容位置；OpenCode 同样会发现它：
+skill 目录中必须直接包含 `SKILL.md`；其中的 `compatibility: opencode` 标明目标运行环境。最终目录结构应为：
 
 ```text
-<project>/.agents/skills/zh-cn-default/SKILL.md
-```
-
-```powershell
-New-Item -ItemType Directory -Force .agents\skills | Out-Null
-git clone https://github.com/TobeBestKK/zh-cn-default-skill.git .agents\skills\zh-cn-default
-```
-
-对于所有项目通用的安装，将其放到：
-
-```text
-~/.agents/skills/zh-cn-default/SKILL.md
+~/.config/opencode/skills/zh-cn-default/SKILL.md
 ```
 
 Windows 通常对应：
 
 ```text
-C:\Users\<用户名>\.agents\skills\zh-cn-default\SKILL.md
+C:\Users\<用户名>\.config\opencode\skills\zh-cn-default\SKILL.md
 ```
 
-不要同时在多个发现位置安装同名副本，以免后加载的位置覆盖前一个版本。项目级 `.opencode/skills/` 适合只服务当前项目；`.agents/skills/` 更适合需要跨代理共享的仓库约定。
+在 PowerShell 中安装：
+
+```powershell
+$skillDir = Join-Path $env:USERPROFILE '.config\opencode\skills\zh-cn-default'
+New-Item -ItemType Directory -Force (Split-Path $skillDir -Parent) | Out-Null
+git clone https://github.com/TobeBestKK/zh-cn-default-skill.git $skillDir
+```
+
+后续更新已安装的副本：
+
+```powershell
+git -C (Join-Path $env:USERPROFILE '.config\opencode\skills\zh-cn-default') pull --ff-only
+```
+
+不要同时在全局目录和项目目录安装同名副本。OpenCode 会发现多种位置中的 skill，同名定义可能因发现顺序而覆盖，容易导致实际加载的版本不符合预期。
 
 ## 在 OpenCode 中调用与验证
 
-OpenCode 会先向代理展示 skill 的 `name` 和 `description`，再由原生 `skill` 工具按需加载完整 `SKILL.md`。通常只要中文请求足够明确，就可以自动匹配。
+启动或重新进入 OpenCode 会话后，先验证全局 skill 已被发现：
 
-也可以在 OpenCode 中输入 `/skills`，搜索并选择 `zh-cn-default`；选择后在提示中补充任务，例如：
+```powershell
+opencode debug skill
+```
+
+输出中应包含 `zh-cn-default`。在交互界面中输入 `/skills`，搜索并选择 `zh-cn-default`；OpenCode 会填入 `/zh-cn-default`，再补充任务即可。也可直接输入：
 
 ```text
 /zh-cn-default 请用简体中文解释这个 Python 报错，并保留命令和 API 名称原文。
 ```
 
-如果项目配置收紧了 skill 权限，在 `opencode.json` 中允许加载：
+OpenCode 也会向代理展示 skill 的 `name` 和 `description`，并由原生 `skill` 工具按需加载完整 `SKILL.md`，因此中文任务通常可以自动匹配。
+
+如果你的 `opencode.json` 显式限制了 skill 权限，只放行此 skill：
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "permission": {
-    "skill": "allow"
+    "skill": {
+      "zh-cn-default": "allow"
+    }
   }
 }
 ```
 
-安装后重新进入会话或输入 `/skills` 检查是否能找到 `zh-cn-default`。可用下面的提示验证行为：
+可用下面的提示验证行为：
 
 ```text
 /zh-cn-default 请解释 `timeout` 配置和 `npm install` 命令的作用。
@@ -94,4 +92,4 @@ zh-cn-default-skill/
 └── SKILL.md
 ```
 
-`SKILL.md` 是运行时入口；`README.md` 说明 OpenCode 的安装、发现与验证方式。该仓库没有运行时依赖或构建步骤。
+`SKILL.md` 是运行时入口；`README.md` 说明 OpenCode 全局安装、发现与验证方式。该仓库没有运行时依赖或构建步骤。
